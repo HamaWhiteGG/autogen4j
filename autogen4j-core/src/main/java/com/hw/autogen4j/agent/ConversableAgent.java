@@ -20,17 +20,19 @@ package com.hw.autogen4j.agent;
 
 import com.hw.autogen4j.entity.CodeExecutionConfig;
 import com.hw.autogen4j.entity.HumanInputMode;
-import com.hw.langchain.base.language.BaseLanguageModel;
-import com.hw.langchain.chat.models.openai.ChatOpenAI;
+import com.hw.openai.entity.chat.ChatCompletion;
+import com.hw.openai.entity.chat.ChatMessage;
+import com.hw.openai.entity.chat.ChatMessageRole;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.hw.autogen4j.entity.HumanInputMode.TERMINATE;
+import static com.hw.openai.entity.chat.ChatMessageRole.*;
 
 /**
  * A class for generic conversable agents which can be configured as assistant or user proxy.
@@ -40,13 +42,9 @@ import static com.hw.autogen4j.entity.HumanInputMode.TERMINATE;
  *
  * @author HamaWhite
  */
-public class ConversableAgent implements Agent {
+public class ConversableAgent extends Agent {
 
-    /**
-     * name of the agent.
-     */
-    protected String name;
-
+    private static final Logger LOG = LoggerFactory.getLogger(ConversableAgent.class);
 
     /**
      * system message for the ChatCompletion inference.
@@ -56,9 +54,8 @@ public class ConversableAgent implements Agent {
     /**
      * a function that takes a message in the form of a dictionary and
      * returns a boolean value indicating if this received message is a termination message.
-     * The dict can contain the following keys: "content", "role", "name", "function_call".
      */
-    protected Predicate<Map<String, String>> isTerminationMsg;
+    protected Predicate<ChatMessage> isTerminationMsg;
 
     /**
      * maximum number of consecutive auto replies
@@ -80,14 +77,11 @@ public class ConversableAgent implements Agent {
      */
     protected CodeExecutionConfig codeExecutionConfig;
 
-    /**
-     * default language model is gpt-4.
-     */
-    protected BaseLanguageModel llm;
+    protected ChatCompletion chatCompletion;
 
-    private Map<Agent, Integer> consecutiveAutoReplyCounter = new HashMap<>();
-    private Map<Agent, Boolean> replyAtReceive = new HashMap<>();
-    private Map<Agent, List<?>> oaiMessages = new HashMap<>();
+    private final Map<Agent, Integer> consecutiveAutoReplyCounter = new HashMap<>();
+    private final Map<Agent, Boolean> replyAtReceive = new HashMap<>();
+    private final Map<Agent, List<ChatMessage>> oaiMessages = new HashMap<>();
 
     protected ConversableAgent(Builder<?> builder) {
         this.name = builder.name;
@@ -97,25 +91,63 @@ public class ConversableAgent implements Agent {
         this.humanInputMode = builder.humanInputMode;
         this.functionMap = builder.functionMap;
         this.codeExecutionConfig = builder.codeExecutionConfig;
-        this.llm = builder.llm;
+        this.chatCompletion = builder.chatCompletion;
+    }
+
+    /**
+     * Append a message to the ChatCompletion conversation.
+     */
+    private void appendMessage(Agent agent, ChatMessage message, ChatMessageRole role) {
+        ChatMessage oaiMessage = new ChatMessage(message);
+        if (!FUNCTION.equals(message.getRole())) {
+            oaiMessage.setRole(role);
+        }
+        oaiMessages.computeIfAbsent(agent, key -> new ArrayList<>()).add(oaiMessage);
     }
 
     @Override
-    public void send(Agent recipient, Map<String, ?> messages, boolean requestReply) {
+    public void send(Agent recipient, ChatMessage message, boolean requestReply, boolean silent) {
+        // when the agent composes and sends the message, the role of the message is "assistant" unless it's "function".
+        appendMessage(recipient, message, ASSISTANT);
 
+        recipient.receive(this, message, requestReply, silent);
+    }
+
+    private void printReceivedMessage(Agent sender, ChatMessage message) {
+        LOG.info("{} (to {}):\n", sender.getName(), this.getName());
+        LOG.info("{}", message.getContent());
+
+        String repeatedDashes = "-".repeat(80);
+        LOG.info("\n{}", repeatedDashes);
+    }
+
+    private void processReceivedMessage(Agent sender, ChatMessage message, boolean silent) {
+        // when the agent receives a message, the role of the message is "user" unless it's "function".
+        appendMessage(sender, message, USER);
+
+        if (silent) {
+            printReceivedMessage(sender, message);
+        }
     }
 
     @Override
-    public void receive(Agent sender, Map<String, ?> messages, boolean requestReply) {
+    public void receive(Agent sender, ChatMessage message, boolean requestReply, boolean silent) {
+        processReceivedMessage(sender, message, silent);
 
+        if (requestReply) {
+            var reply = generateReply(sender, oaiMessages.get(sender));
+            if (reply != null) {
+                send(sender, reply, requestReply, silent);
+            }
+        }
     }
 
     private void prepareChat(ConversableAgent recipient, boolean clearHistory) {
         this.resetConsecutiveAutoReplyCounter(recipient);
         recipient.resetConsecutiveAutoReplyCounter(this);
 
-        this.replyAtReceive.put(recipient, true);
-        recipient.replyAtReceive.put(this, true);
+        this.replyAtReceive.putIfAbsent(recipient, true);
+        recipient.replyAtReceive.putIfAbsent(this, true);
 
         if (clearHistory) {
             this.clearHistory(recipient);
@@ -144,14 +176,13 @@ public class ConversableAgent implements Agent {
      */
     public void initiateChat(ConversableAgent recipient, String message, boolean clearHistory, boolean silent) {
         prepareChat(recipient, clearHistory);
-        send(recipient, message, silent);
+        send(recipient, new ChatMessage(message), false, silent);
     }
 
     private void resetConsecutiveAutoReplyCounter(Agent sender) {
         Optional.ofNullable(sender).ifPresentOrElse(
                 value -> consecutiveAutoReplyCounter.put(value, 0),
-                consecutiveAutoReplyCounter::clear
-        );
+                consecutiveAutoReplyCounter::clear);
     }
 
     /**
@@ -160,33 +191,16 @@ public class ConversableAgent implements Agent {
      * @param agent the agent with whom the chat history to clear. If null, clear the chat history with all agents.
      */
     private void clearHistory(Agent agent) {
-        Optional.ofNullable(agent).ifPresentOrElse(
-                value -> oaiMessages.get(value).clear(),
-                oaiMessages::clear
-        );
-    }
-
-    @Override
-    public void generateReply(Agent sender, List<Map<String, ?>> messages) {
-
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
+        if (agent != null && oaiMessages.containsKey(agent)) {
+            oaiMessages.get(agent).clear();
+        } else {
+            oaiMessages.clear();
         }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        ConversableAgent that = (ConversableAgent) o;
-        return name.equals(that.name);
     }
 
     @Override
-    public int hashCode() {
-        return name.hashCode();
+    public ChatMessage generateReply(Agent sender, List<ChatMessage> messages) {
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -205,9 +219,8 @@ public class ConversableAgent implements Agent {
         /**
          * a function that takes a message in the form of a dictionary and
          * returns a boolean value indicating if this received message is a termination message.
-         * The dict can contain the following keys: "content", "role", "name", "function_call".
          */
-        protected Predicate<Map<String, String>> isTerminationMsg;
+        protected Predicate<ChatMessage> isTerminationMsg;
 
         /**
          * maximum number of consecutive auto replies
@@ -229,10 +242,7 @@ public class ConversableAgent implements Agent {
          */
         protected CodeExecutionConfig codeExecutionConfig;
 
-        /**
-         * default language model is gpt-4.
-         */
-        protected BaseLanguageModel llm;
+        protected ChatCompletion chatCompletion;
 
         protected Builder() {
         }
@@ -247,7 +257,7 @@ public class ConversableAgent implements Agent {
             return (T) this;
         }
 
-        public T isTerminationMsg(Predicate<Map<String, String>> isTerminationMsg) {
+        public T isTerminationMsg(Predicate<ChatMessage> isTerminationMsg) {
             this.isTerminationMsg = isTerminationMsg;
             return (T) this;
         }
@@ -272,20 +282,12 @@ public class ConversableAgent implements Agent {
             return (T) this;
         }
 
-        public T llm(BaseLanguageModel llm) {
-            this.llm = llm;
+        public T chatCompletion(ChatCompletion chatCompletion) {
+            this.chatCompletion = chatCompletion;
             return (T) this;
         }
 
-
         public ConversableAgent build() {
-            if (llm == null) {
-                llm = ChatOpenAI.builder()
-                        .model("gpt-4")
-                        .temperature(0)
-                        .build()
-                        .init();
-            }
             return new ConversableAgent(this);
         }
     }

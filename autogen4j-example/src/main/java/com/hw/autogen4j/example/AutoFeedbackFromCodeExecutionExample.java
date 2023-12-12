@@ -43,7 +43,7 @@ public class AutoFeedbackFromCodeExecutionExample {
                 .name("user_proxy")
                 .humanInputMode(NEVER)
                 .maxConsecutiveAutoReply(10)
-                .isTerminationMsg(x -> x.getOrDefault("content", "").strip().endsWith("TERMINATE"))
+                .isTerminationMsg(e->e.getContent().strip().endsWith("TERMINATE"))
                 .codeExecutionConfig(codeExecutionConfig)
                 .build();
 

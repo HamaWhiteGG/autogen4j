@@ -18,8 +18,11 @@
 
 package com.hw.autogen4j.agent;
 
+import com.hw.openai.entity.chat.ChatMessage;
+
+import lombok.Getter;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * An agent can communicate with other agents and perform actions.
@@ -27,20 +30,60 @@ import java.util.Map;
  *
  * @author HamaWhite
  */
-public interface Agent {
+@Getter
+public abstract class Agent {
+
+    /**
+     * name of the agent.
+     */
+    protected String name;
 
     /**
      * Send a message to another agent.
+     *
+     * @param recipient    the recipient of the message.
+     * @param message      message to be sent.
+     * @param requestReply whether to request a reply from the recipient.
+     * @param silent       whether to print the message sent.
      */
-    void send( Agent recipient,Map<String, ?> messages, boolean requestReply);
+    public abstract void send(Agent recipient, ChatMessage message, boolean requestReply, boolean silent);
 
     /**
-     * Receive a message from another agent.
+     * Receive a message from another agent. Once a message is received, this function sends a reply to the sender
+     * or stop. The reply can be generated automatically or entered manually by a human.
+     *
+     * @param sender       sender of an Agent instance.
+     * @param message      message from the sender.
+     * @param requestReply whether a reply is requested from the sender.
+     * @param silent       whether to print the message received.
      */
-    void receive(Agent sender, Map<String, ?> messages, boolean requestReply);
+    public abstract void receive(Agent sender, ChatMessage message, boolean requestReply, boolean silent);
 
     /**
      * Generate a reply based on the received messages.
+     *
+     * @param sender sender of an Agent instance.
+     * @param messages  a list of messages received.
+     * @return a reply message.
      */
-    void generateReply(Agent sender,List<Map<String, ?>> messages);
+    public abstract ChatMessage generateReply(Agent sender, List<ChatMessage> messages);
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        Agent agent = (Agent) o;
+
+        return name.equals(agent.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
 }

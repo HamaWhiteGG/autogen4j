@@ -16,7 +16,7 @@
     </modules>
 
     <properties>
-        <langchain.version>0.2.1</langchain.version>
+        <openai.version>0.2.0-SNAPSHOT</openai.version>
 
         <junit.version>5.9.3</junit.version>
         <junit-suite.version>1.10.0</junit-suite.version>
@@ -37,8 +37,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.github.hamawhitegg</groupId>
-                <artifactId>langchain-core</artifactId>
-                <version>${langchain.version}</version>
+                <artifactId>openai-client</artifactId>
+                <version>${openai.version}</version>
             </dependency>
 
             <dependency>
