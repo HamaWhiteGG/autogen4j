@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-package com.hw.autogen4j.agent.contrib;
-
-import com.hw.autogen4j.agent.ConversableAgent;
+package com.hw.autogen4j.example.util;
 
 /**
- * Teachable Agent, a subclass of ConversableAgent using a vector database to remember user teachings.
- *
  * @author HamaWhite
  */
-public class TeachableAgent extends ConversableAgent {
+public class PrintUtil {
 
-    protected TeachableAgent(Builder<?> builder) {
-        super(builder);
+    private PrintUtil() {
+    }
+
+    public static void println(Object obj) {
+        System.out.println(obj);
     }
 }

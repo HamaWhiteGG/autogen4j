@@ -16,18 +16,37 @@
  * limitations under the License.
  */
 
-package com.hw.autogen4j.agent.contrib;
+package com.hw.autogen4j.entity;
 
-import com.hw.autogen4j.agent.ConversableAgent;
+import lombok.Builder;
 
 /**
- * Teachable Agent, a subclass of ConversableAgent using a vector database to remember user teachings.
+ * Config for the code execution.
  *
  * @author HamaWhite
  */
-public class TeachableAgent extends ConversableAgent {
+@Builder
+public class CodeExecutionConfig {
 
-    protected TeachableAgent(Builder<?> builder) {
-        super(builder);
-    }
+    /**
+     * the working directory for the code execution.
+     */
+    @Builder.Default
+    private String workDir = "extensions";
+
+    /**
+     * the docker image to use for code execution.
+     */
+    private String docker;
+
+    /**
+     * the maximum execution time in seconds.
+     */
+    private int timeout;
+
+    /**
+     * the number of messages to look back for code execution
+     */
+    @Builder.Default
+    private int lastMessages = 1;
 }
