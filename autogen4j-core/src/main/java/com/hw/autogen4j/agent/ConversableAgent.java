@@ -20,10 +20,13 @@ package com.hw.autogen4j.agent;
 
 import com.hw.autogen4j.entity.CodeExecutionConfig;
 import com.hw.autogen4j.entity.HumanInputMode;
+import com.hw.autogen4j.entity.ReplyResult;
 import com.hw.openai.entity.chat.ChatCompletion;
 import com.hw.openai.entity.chat.ChatMessage;
 import com.hw.openai.entity.chat.ChatMessageRole;
 
+import com.hw.openai.entity.chat.FunctionCall;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +34,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.hw.autogen4j.entity.HumanInputMode.TERMINATE;
+import static com.hw.autogen4j.entity.HumanInputMode.*;
 import static com.hw.openai.entity.chat.ChatMessageRole.*;
 
 /**
@@ -97,7 +100,7 @@ public class ConversableAgent extends Agent {
     /**
      * Append a message to the ChatCompletion conversation.
      */
-    private void appendMessage(Agent agent, ChatMessage message, ChatMessageRole role) {
+    private void appendOaiMessage(Agent agent, ChatMessage message, ChatMessageRole role) {
         ChatMessage oaiMessage = new ChatMessage(message);
         if (!FUNCTION.equals(message.getRole())) {
             oaiMessage.setRole(role);
@@ -108,7 +111,7 @@ public class ConversableAgent extends Agent {
     @Override
     public void send(Agent recipient, ChatMessage message, boolean requestReply, boolean silent) {
         // when the agent composes and sends the message, the role of the message is "assistant" unless it's "function".
-        appendMessage(recipient, message, ASSISTANT);
+        appendOaiMessage(recipient, message, ASSISTANT);
 
         recipient.receive(this, message, requestReply, silent);
     }
@@ -123,9 +126,9 @@ public class ConversableAgent extends Agent {
 
     private void processReceivedMessage(Agent sender, ChatMessage message, boolean silent) {
         // when the agent receives a message, the role of the message is "user" unless it's "function".
-        appendMessage(sender, message, USER);
+        appendOaiMessage(sender, message, USER);
 
-        if (silent) {
+        if (!silent) {
             printReceivedMessage(sender, message);
         }
     }
@@ -134,7 +137,7 @@ public class ConversableAgent extends Agent {
     public void receive(Agent sender, ChatMessage message, boolean requestReply, boolean silent) {
         processReceivedMessage(sender, message, silent);
 
-        if (requestReply) {
+        if (requestReply || replyAtReceive.get(sender)) {
             var reply = generateReply(sender, oaiMessages.get(sender));
             if (reply != null) {
                 send(sender, reply, requestReply, silent);
@@ -198,13 +201,152 @@ public class ConversableAgent extends Agent {
         }
     }
 
+    /**
+     * Generate a reply using code execution.
+     *
+     * @param sender   The agent object representing the sender of the message.
+     * @param messages A list of message dictionaries, representing the conversation history.
+     * @return a reply using code execution.
+     */
+    private ReplyResult generateCodeExecutionReply(Agent sender, List<ChatMessage> messages) {
+
+    }
+
+    /**
+     * Generate a reply using function call.
+     *
+     * @param sender   The agent object representing the sender of the message.
+     * @param messages A list of message dictionaries, representing the conversation history.
+     * @return a reply using function call.
+     */
+    private ReplyResult generateFunctionCallReply(Agent sender, List<ChatMessage> messages) {
+        ChatMessage message = messages.get(messages.size() - 1);
+        if (CollectionUtils.isNotEmpty(message.getToolCalls())) {
+            // only supports executing the first function now.
+            ChatMessage functionResult = executeFunction(message.getToolCalls().get(0).getFunction());
+            return new ReplyResult(true, functionResult);
+        }
+        return new ReplyResult(false, null);
+    }
+
+    /**
+     * Check if the conversation should be terminated, and if human reply is provided.
+     * <p>
+     * This method checks for conditions that require the conversation to be terminated, such as reaching
+     * a maximum number of consecutive auto-replies or encountering a termination message. Additionally,
+     * it prompts for and processes human input based on the configured human input mode, which can be
+     * 'ALWAYS', 'NEVER', or 'TERMINATE'. The method also manages the consecutive auto-reply counter
+     * for the conversation and prints relevant messages based on the human input received.
+     *
+     * @param sender   The agent object representing the sender of the message.
+     * @param messages A list of message dictionaries, representing the conversation history.
+     * @return a boolean indicating if the conversation should be terminated and a human reply
+     */
+    private ReplyResult checkTerminationAndHumanReply(Agent sender, List<ChatMessage> messages) {
+        ChatMessage message = messages.get(messages.size() - 1);
+        String reply = "";
+        String noHumanInputMsg = "";
+        if (humanInputMode.equals(ALWAYS)) {
+            reply = getHumanInput(
+                    String.format("Provide feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: ", sender.getName()));
+
+            noHumanInputMsg = reply.isEmpty() ? "NO HUMAN INPUT RECEIVED." : "";
+            // if the human input is empty, and the message is a termination message, then we will terminate the conversation
+            reply = !reply.isEmpty() || !isTerminationMsg.test(message) ? reply : "exit";
+        } else {
+            if (consecutiveAutoReplyCounter.get(sender) > maxConsecutiveAutoReply) {
+                if (humanInputMode.equals(NEVER)) {
+                    reply = "exit";
+                } else {
+                    // if humanInputMode equals "TERMINATE"
+                    boolean terminate = isTerminationMsg.test(message);
+
+                    String prompt = terminate
+                            ? String.format("Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ", sender.getName())
+                            : String.format("Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: ", sender.getName());
+                    reply = getHumanInput(prompt);
+                    noHumanInputMsg = reply.isEmpty() ? "NO HUMAN INPUT RECEIVED." : "";
+                    // if the human input is empty, and the message is a termination message, then we will terminate the conversation
+                    reply = !reply.isEmpty() || !terminate ? reply : "exit";
+                }
+            } else if (isTerminationMsg.test(message)) {
+                if (humanInputMode.equals(NEVER)) {
+                    reply = "exit";
+                } else {
+                    // if humanInputMode equals "TERMINATE":
+                    reply = getHumanInput(
+                            String.format("Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ", sender.getName()));
+
+                    noHumanInputMsg = reply.isEmpty() ? "NO HUMAN INPUT RECEIVED." : "";
+                    // If the human input is empty, then we will terminate the conversation
+                    reply = reply.isEmpty() ? "exit" : reply;
+                }
+            }
+        }
+        // print the noHumanInputMsg
+        if (!noHumanInputMsg.isEmpty()) {
+            LOG.info("\n>>>>>>>> {}", noHumanInputMsg);
+        }
+        // stop the conversation
+        if ("exit".equals(reply)) {
+            // reset the consecutiveAutoReplyCounter
+            consecutiveAutoReplyCounter.put(sender, 0);
+            return new ReplyResult(true, null);
+        }
+        // send the human reply
+        if (!reply.isEmpty()) {
+            // reset the consecutiveAutoReplyCounter
+            consecutiveAutoReplyCounter.put(sender, 0);
+            return new ReplyResult(true, new ChatMessage(reply));
+        }
+        // increment the consecutiveAutoReplyCounter
+        consecutiveAutoReplyCounter.put(sender, consecutiveAutoReplyCounter.get(sender) + 1);
+        if (!humanInputMode.equals(NEVER)) {
+            LOG.info("\n>>>>>>>> USING AUTO REPLY...");
+        }
+        return new ReplyResult(false, null);
+    }
+
     @Override
     public ChatMessage generateReply(Agent sender, List<ChatMessage> messages) {
+        ReplyResult replyResult = checkTerminationAndHumanReply(sender, messages);
+        if (replyResult.terminate()) {
+            return replyResult.reply();
+        }
+        replyResult = generateFunctionCallReply(sender, messages);
+        if (replyResult.terminate()) {
+            return replyResult.reply();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get human input.
+     * Override this method to customize the way to get human input.
+     *
+     * @param prompt prompt for the human input.
+     * @return human input.
+     */
+    protected String getHumanInput(String prompt) {
+        System.out.print(prompt);
+        Scanner scanner = new Scanner(System.in);
+        return scanner.nextLine();
+    }
+
+    /**
+     * Execute a function call and return the result.
+     *
+     * @param functionCall The function call to be executed.
+     * @return The result of the function call
+     */
+    private ChatMessage executeFunction(FunctionCall functionCall) {
+        // TODO
         return null;
     }
 
     @SuppressWarnings("unchecked")
-    protected static class Builder<T extends Builder<T>> {
+    protected abstract static class Builder<T extends Builder<T>> {
 
         /**
          * name of the agent.
@@ -220,7 +362,7 @@ public class ConversableAgent extends Agent {
          * a function that takes a message in the form of a dictionary and
          * returns a boolean value indicating if this received message is a termination message.
          */
-        protected Predicate<ChatMessage> isTerminationMsg;
+        protected Predicate<ChatMessage> isTerminationMsg = e -> "TERMINATE".equals(e.getContent());
 
         /**
          * maximum number of consecutive auto replies
@@ -244,8 +386,6 @@ public class ConversableAgent extends Agent {
 
         protected ChatCompletion chatCompletion;
 
-        protected Builder() {
-        }
 
         public T name(String name) {
             this.name = name;
@@ -287,8 +427,6 @@ public class ConversableAgent extends Agent {
             return (T) this;
         }
 
-        public ConversableAgent build() {
-            return new ConversableAgent(this);
-        }
+        protected abstract ConversableAgent build();
     }
 }

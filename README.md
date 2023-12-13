@@ -1,1 +1,1 @@
-**Java version of AutoGen**
+**Java version of Microsoft AutoGen, Enable Next-Gen Large Language Model Applications**

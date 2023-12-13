@@ -43,6 +43,7 @@ public class UserProxyAgent extends ConversableAgent {
             this.humanInputMode = ALWAYS;
         }
 
+        @Override
         public UserProxyAgent build() {
             return new UserProxyAgent(this);
         }

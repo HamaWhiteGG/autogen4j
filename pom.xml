@@ -22,6 +22,7 @@
         <junit-suite.version>1.10.0</junit-suite.version>
         <assertj.version>3.24.2</assertj.version>
         <lombok.version>1.18.28</lombok.version>
+        <commons-collections4.version>4.4</commons-collections4.version>
 
         <target.java.version>17</target.java.version>
         <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
@@ -39,6 +40,12 @@
                 <groupId>io.github.hamawhitegg</groupId>
                 <artifactId>openai-client</artifactId>
                 <version>${openai.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${commons-collections4.version}</version>
             </dependency>
 
             <dependency>
