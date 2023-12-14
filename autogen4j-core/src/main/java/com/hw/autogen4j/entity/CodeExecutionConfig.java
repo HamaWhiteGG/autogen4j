@@ -19,12 +19,14 @@
 package com.hw.autogen4j.entity;
 
 import lombok.Builder;
+import lombok.Getter;
 
 /**
  * Config for the code execution.
  *
  * @author HamaWhite
  */
+@Getter
 @Builder
 public class CodeExecutionConfig {
 
@@ -45,8 +47,9 @@ public class CodeExecutionConfig {
     private int timeout;
 
     /**
-     * the number of messages to look back for code execution
+     * the number of messages to look back for code execution.
+     * default value is 1, and -1 indicates auto mode.
      */
     @Builder.Default
-    private int lastMessages = 1;
+    private int lastMessagesNumber = 1;
 }

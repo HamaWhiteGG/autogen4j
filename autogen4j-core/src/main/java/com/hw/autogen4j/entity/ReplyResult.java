@@ -5,4 +5,5 @@ import com.hw.openai.entity.chat.ChatMessage;
 /**
  * @author HamaWhite
  */
-public record ReplyResult(boolean terminate, ChatMessage reply) {}
+public record ReplyResult(boolean terminate, ChatMessage reply) {
+}

@@ -18,23 +18,26 @@
 
 package com.hw.autogen4j.agent;
 
+import com.hw.autogen4j.entity.CodeBlock;
 import com.hw.autogen4j.entity.CodeExecutionConfig;
 import com.hw.autogen4j.entity.HumanInputMode;
 import com.hw.autogen4j.entity.ReplyResult;
-import com.hw.openai.entity.chat.ChatCompletion;
-import com.hw.openai.entity.chat.ChatMessage;
-import com.hw.openai.entity.chat.ChatMessageRole;
+import com.hw.openai.OpenAiClient;
+import com.hw.openai.entity.chat.*;
 
-import com.hw.openai.entity.chat.FunctionCall;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.hw.autogen4j.entity.HumanInputMode.*;
+import static com.hw.autogen4j.util.CodeUtil.extractCode;
 import static com.hw.openai.entity.chat.ChatMessageRole.*;
 
 /**
@@ -80,11 +83,25 @@ public class ConversableAgent extends Agent {
      */
     protected CodeExecutionConfig codeExecutionConfig;
 
+    /**
+     * a client for interacting with the OpenAI API.
+     */
+    protected OpenAiClient client;
+
+    /**
+     * Chat conversation.
+     */
     protected ChatCompletion chatCompletion;
+
+    /**
+     * default auto reply when no code execution or llm-based reply is generated.
+     */
+    protected String defaultAutoReply;
 
     private final Map<Agent, Integer> consecutiveAutoReplyCounter = new HashMap<>();
     private final Map<Agent, Boolean> replyAtReceive = new HashMap<>();
     private final Map<Agent, List<ChatMessage>> oaiMessages = new HashMap<>();
+    private final List<ChatMessage> oaiSystemMessage;
 
     protected ConversableAgent(Builder<?> builder) {
         this.name = builder.name;
@@ -94,7 +111,11 @@ public class ConversableAgent extends Agent {
         this.humanInputMode = builder.humanInputMode;
         this.functionMap = builder.functionMap;
         this.codeExecutionConfig = builder.codeExecutionConfig;
+        this.client = builder.client;
         this.chatCompletion = builder.chatCompletion;
+        this.defaultAutoReply = builder.defaultAutoReply;
+
+        this.oaiSystemMessage = List.of(new ChatMessage(SYSTEM, systemMessage));
     }
 
     /**
@@ -118,10 +139,26 @@ public class ConversableAgent extends Agent {
 
     private void printReceivedMessage(Agent sender, ChatMessage message) {
         LOG.info("{} (to {}):\n", sender.getName(), this.getName());
-        LOG.info("{}", message.getContent());
 
-        String repeatedDashes = "-".repeat(80);
-        LOG.info("\n{}", repeatedDashes);
+        if (FUNCTION.equals(message.getRole())) {
+            String funcPrint = String.format("***** Response from calling function '%s' *****", message.getName());
+            LOG.info(funcPrint);
+            LOG.info(message.getContent());
+            LOG.info("*".repeat(funcPrint.length()));
+        } else {
+            if (StringUtils.isNotEmpty(message.getContent())) {
+                LOG.info(message.getContent());
+            }
+            if (CollectionUtils.isNotEmpty(message.getToolCalls())) {
+                // only support the first function now.
+                FunctionCall functionCall = message.getToolCalls().get(0).getFunction();
+                String funcPrint = String.format("***** Suggested function Call: %s *****", functionCall.getName());
+                LOG.info(funcPrint);
+                LOG.info("Arguments: \n{}", functionCall.getArguments());
+                LOG.info("*".repeat(funcPrint.length()));
+            }
+        }
+        LOG.info("\n" + "-".repeat(80));
     }
 
     private void processReceivedMessage(Agent sender, ChatMessage message, boolean silent) {
@@ -202,21 +239,72 @@ public class ConversableAgent extends Agent {
     }
 
     /**
+     * Generate a reply using llm.
+     *
+     * @param sender   The agent object representing the sender of the message.
+     * @param messages A list of message, representing the conversation history.
+     * @return a reply using llm.
+     */
+    private ReplyResult generateOaiReply(Agent sender, List<ChatMessage> messages) {
+        chatCompletion.setMessages(ListUtils.union(oaiSystemMessage, messages));
+        ChatCompletionResp response = client.createChatCompletion(chatCompletion);
+        return new ReplyResult(true, response.getChoices().get(0).getMessage());
+    }
+
+    /**
      * Generate a reply using code execution.
      *
      * @param sender   The agent object representing the sender of the message.
-     * @param messages A list of message dictionaries, representing the conversation history.
+     * @param messages A list of message, representing the conversation history.
      * @return a reply using code execution.
      */
     private ReplyResult generateCodeExecutionReply(Agent sender, List<ChatMessage> messages) {
+        if (codeExecutionConfig == null) {
+            return new ReplyResult(false, null);
+        }
 
+        int lastMessagesNumber = codeExecutionConfig.getLastMessagesNumber();
+        int messagesToScan = lastMessagesNumber;
+        // indicates auto mode, find when the agent last spoke
+        if (lastMessagesNumber == -1) {
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                ChatMessage message = messages.get(i);
+                if (USER.equals(message.getRole())) {
+                    break;
+                }
+                messagesToScan += 1;
+            }
+        }
+
+        /*
+         * iterate through the last n messages reversely. if code blocks are found, execute the code blocks and
+         * return the output, if no code blocks are found, continue
+         */
+        for (int i = 0; i < Math.min(messages.size(), messagesToScan); i++) {
+            ChatMessage message = messages.get(messages.size() - 1 - i);
+            String content = message.getContent();
+            if (StringUtils.isEmpty(content)) {
+                continue;
+            }
+
+            List<CodeBlock> codeBlocks = extractCode(content);
+
+
+//            Result result = executeCodeBlocks(codeBlocks);
+//            String exitCodeToStr = result.getExitCode() == 0 ? "execution succeeded" : "execution failed";
+//
+//            return new ReplyResult(true, "exitcode: " + result.getExitCode() + " (" + exitCodeToStr + ")" + "\nCode output: " + result.getLogs());
+        }
+
+
+        return new ReplyResult(false, null);
     }
 
     /**
      * Generate a reply using function call.
      *
      * @param sender   The agent object representing the sender of the message.
-     * @param messages A list of message dictionaries, representing the conversation history.
+     * @param messages A list of message, representing the conversation history.
      * @return a reply using function call.
      */
     private ReplyResult generateFunctionCallReply(Agent sender, List<ChatMessage> messages) {
@@ -239,7 +327,7 @@ public class ConversableAgent extends Agent {
      * for the conversation and prints relevant messages based on the human input received.
      *
      * @param sender   The agent object representing the sender of the message.
-     * @param messages A list of message dictionaries, representing the conversation history.
+     * @param messages A list of message, representing the conversation history.
      * @return a boolean indicating if the conversation should be terminated and a human reply
      */
     private ReplyResult checkTerminationAndHumanReply(Agent sender, List<ChatMessage> messages) {
@@ -309,16 +397,23 @@ public class ConversableAgent extends Agent {
 
     @Override
     public ChatMessage generateReply(Agent sender, List<ChatMessage> messages) {
-        ReplyResult replyResult = checkTerminationAndHumanReply(sender, messages);
-        if (replyResult.terminate()) {
-            return replyResult.reply();
-        }
-        replyResult = generateFunctionCallReply(sender, messages);
-        if (replyResult.terminate()) {
-            return replyResult.reply();
-        }
+        // creating a list of method references
+        List<BiFunction<Agent, List<ChatMessage>, ReplyResult>> replyFuncList = List.of(
+                this::checkTerminationAndHumanReply,
+                this::generateFunctionCallReply,
+                this::generateCodeExecutionReply,
+                this::generateOaiReply);
 
-        return null;
+        // loop through each method
+        for (var replyFunc : replyFuncList) {
+            ReplyResult replyResult = replyFunc.apply(sender, messages);
+            // if termination is required, immediately return the reply
+            if (replyResult.terminate()) {
+                return replyResult.reply();
+            }
+        }
+        // if no termination occurred, return default auto reply
+        return new ChatMessage(defaultAutoReply);
     }
 
     /**
@@ -329,10 +424,12 @@ public class ConversableAgent extends Agent {
      * @return human input.
      */
     protected String getHumanInput(String prompt) {
-        System.out.print(prompt);
+        LOG.info(prompt);
         Scanner scanner = new Scanner(System.in);
         return scanner.nextLine();
     }
+
+    private
 
     /**
      * Execute a function call and return the result.
@@ -384,8 +481,33 @@ public class ConversableAgent extends Agent {
          */
         protected CodeExecutionConfig codeExecutionConfig;
 
+        /**
+         * a client for interacting with the OpenAI API.
+         */
+        protected OpenAiClient client;
+
+        /**
+         * Chat conversation.
+         */
         protected ChatCompletion chatCompletion;
 
+        /**
+         * default auto reply when no code execution or llm-based reply is generated.
+         */
+        protected String defaultAutoReply = "";
+
+
+        protected Builder() {
+            this.client = OpenAiClient.builder()
+                    .requestTimeout(60)
+                    .build()
+                    .init();
+
+            this.chatCompletion = ChatCompletion.builder()
+                    .model("gpt-4")
+                    .temperature(0)
+                    .build();
+        }
 
         public T name(String name) {
             this.name = name;
@@ -422,8 +544,18 @@ public class ConversableAgent extends Agent {
             return (T) this;
         }
 
+        public T client(OpenAiClient client) {
+            this.client = client;
+            return (T) this;
+        }
+
         public T chatCompletion(ChatCompletion chatCompletion) {
             this.chatCompletion = chatCompletion;
+            return (T) this;
+        }
+
+        public T defaultAutoReply(String defaultAutoReply) {
+            this.defaultAutoReply = defaultAutoReply;
             return (T) this;
         }
 

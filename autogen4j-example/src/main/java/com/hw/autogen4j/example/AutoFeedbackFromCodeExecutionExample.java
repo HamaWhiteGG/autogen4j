@@ -32,7 +32,7 @@ public class AutoFeedbackFromCodeExecutionExample {
     public static void main(String[] args) {
         // create an AssistantAgent named "assistant"
         var assistant = AssistantAgent.builder()
-                .name("Assistant")
+                .name("assistant")
                 .build();
 
         var codeExecutionConfig = CodeExecutionConfig.builder()

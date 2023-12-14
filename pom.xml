@@ -22,6 +22,7 @@
         <junit-suite.version>1.10.0</junit-suite.version>
         <assertj.version>3.24.2</assertj.version>
         <lombok.version>1.18.28</lombok.version>
+        <guava.version>32.0.1-jre</guava.version>
         <commons-collections4.version>4.4</commons-collections4.version>
 
         <target.java.version>17</target.java.version>
@@ -40,6 +41,12 @@
                 <groupId>io.github.hamawhitegg</groupId>
                 <artifactId>openai-client</artifactId>
                 <version>${openai.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
             </dependency>
 
             <dependency>
