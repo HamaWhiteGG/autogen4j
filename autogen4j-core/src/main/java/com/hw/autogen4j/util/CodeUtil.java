@@ -19,8 +19,9 @@
 package com.hw.autogen4j.util;
 
 import com.hw.autogen4j.entity.CodeBlock;
+import com.hw.autogen4j.entity.CodeExecutionConfig;
+import com.hw.autogen4j.entity.CodeExecutionResult;
 
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -85,4 +86,20 @@ public class CodeUtil {
         }
         return extracted;
     }
+
+
+    /**
+     * Execute code in a docker container.
+     *
+     * @param language        The language of the code.
+     * @param code            The code to execute.
+     * @param executionConfig Configuration for code execution.
+     * @return CodeExecutionResult representing the result of code execution.
+     */
+    public static CodeExecutionResult executeCode(String language, String code, CodeExecutionConfig executionConfig) {
+        System.out.println("LLM");
+        // Your implementation here
+        return null;
+    }
+
 }

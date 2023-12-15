@@ -18,10 +18,7 @@
 
 package com.hw.autogen4j.agent;
 
-import com.hw.autogen4j.entity.CodeBlock;
-import com.hw.autogen4j.entity.CodeExecutionConfig;
-import com.hw.autogen4j.entity.HumanInputMode;
-import com.hw.autogen4j.entity.ReplyResult;
+import com.hw.autogen4j.entity.*;
 import com.hw.openai.OpenAiClient;
 import com.hw.openai.entity.chat.*;
 
@@ -37,6 +34,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.hw.autogen4j.entity.HumanInputMode.*;
+import static com.hw.autogen4j.util.CodeUtil.executeCode;
 import static com.hw.autogen4j.util.CodeUtil.extractCode;
 import static com.hw.openai.entity.chat.ChatMessageRole.*;
 
@@ -288,15 +286,12 @@ public class ConversableAgent extends Agent {
             }
 
             List<CodeBlock> codeBlocks = extractCode(content);
+            CodeExecutionResult result = executeCodeBlocks(codeBlocks);
 
-
-//            Result result = executeCodeBlocks(codeBlocks);
-//            String exitCodeToStr = result.getExitCode() == 0 ? "execution succeeded" : "execution failed";
-//
-//            return new ReplyResult(true, "exitcode: " + result.getExitCode() + " (" + exitCodeToStr + ")" + "\nCode output: " + result.getLogs());
+            String exitCodeToStr = result.exitCode() == 0 ? "execution succeeded" : "execution failed";
+            String reply = String.format("exitcode: %s (%s})\nCode output: %s", result.exitCode(), exitCodeToStr, result.logs());
+            return new ReplyResult(true, new ChatMessage(reply));
         }
-
-
         return new ReplyResult(false, null);
     }
 
@@ -429,7 +424,36 @@ public class ConversableAgent extends Agent {
         return scanner.nextLine();
     }
 
-    private
+    /**
+     * Execute the code blocks and return the result.
+     *
+     * @param codeBlocks List of code blocks to execute.
+     * @return CodeExecutionResult representing the result of code execution.
+     */
+    private CodeExecutionResult executeCodeBlocks(List<CodeBlock> codeBlocks) {
+        StringBuilder allLogs = new StringBuilder();
+        CodeExecutionResult result = null;
+        for (int i = 0; i < codeBlocks.size(); i++) {
+            CodeBlock codeBlock = codeBlocks.get(i);
+            String language = codeBlock.language();
+            String code = codeBlock.code();
+            LOG.info("\n>>>>>>>> EXECUTING CODE BLOCK {} (inferred language is {})...", i + 1, language);
+
+            if (Set.of("bash", "shell", "sh", "python").contains(language.toLowerCase())) {
+                result = executeCode(language, code, codeExecutionConfig);
+            } else {
+                // the language is not supported, then return an error message.
+                result = new CodeExecutionResult(1, "unknown language " + language);
+            }
+
+            allLogs.append("\n").append(result.logs());
+            if (result.exitCode() != 0) {
+                return new CodeExecutionResult(result.exitCode(), allLogs.toString());
+            }
+        }
+        return new CodeExecutionResult(result.exitCode(), allLogs.toString());
+    }
+
 
     /**
      * Execute a function call and return the result.
