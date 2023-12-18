@@ -20,7 +20,6 @@ package com.hw.autogen4j.entity;
 
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 
 /**
  * Config for the code execution.

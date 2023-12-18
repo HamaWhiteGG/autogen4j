@@ -22,6 +22,7 @@ import com.hw.autogen4j.entity.CodeBlock;
 import com.hw.autogen4j.entity.CodeExecutionConfig;
 import com.hw.autogen4j.entity.CodeExecutionResult;
 import com.hw.autogen4j.exception.Autogen4jException;
+
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.*;
 import org.apache.commons.lang3.StringUtils;
@@ -43,6 +44,10 @@ import static com.hw.autogen4j.util.FileUtil.writeCodeToFile;
  * @author HamaWhite
  */
 public class CodeUtil {
+
+    private CodeUtil() {
+        throw new IllegalStateException("Utility class");
+    }
 
     /**
      * Matches multi-line code blocks.
@@ -100,7 +105,6 @@ public class CodeUtil {
         return extracted;
     }
 
-
     /**
      * Execute code in a docker container.
      *
@@ -138,7 +142,8 @@ public class CodeUtil {
         };
     }
 
-    public static CodeExecutionResult executeCodeLocally(String language, String workDir, String filename, int timeout) {
+    public static CodeExecutionResult executeCodeLocally(String language, String workDir, String filename,
+            int timeout) {
         // set up the command based on language
         String executable = getExecutableForLanguage(language);
         CommandLine commandLine = new CommandLine(executable);
@@ -176,7 +181,6 @@ public class CodeUtil {
             throw new Autogen4jException("Error executing code.", e);
         }
     }
-
 
     public static CodeExecutionResult executeCodeInDocker() {
         // TODO

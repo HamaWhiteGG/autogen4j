@@ -50,6 +50,8 @@ public class ConversableAgent extends Agent {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConversableAgent.class);
 
+    private static final String NO_HUMAN_INPUT_MSG = "NO HUMAN INPUT RECEIVED.";
+
     /**
      * system message for the ChatCompletion inference.
      */
@@ -142,7 +144,9 @@ public class ConversableAgent extends Agent {
             String funcPrint = String.format("***** Response from calling function '%s' *****", message.getName());
             LOG.info(funcPrint);
             LOG.info(message.getContent());
-            LOG.info("*".repeat(funcPrint.length()));
+
+            String repeatedStars = "*".repeat(funcPrint.length());
+            LOG.info(repeatedStars);
         } else {
             if (StringUtils.isNotEmpty(message.getContent())) {
                 LOG.info(message.getContent());
@@ -153,10 +157,13 @@ public class ConversableAgent extends Agent {
                 String funcPrint = String.format("***** Suggested function Call: %s *****", functionCall.getName());
                 LOG.info(funcPrint);
                 LOG.info("Arguments: \n{}", functionCall.getArguments());
-                LOG.info("*".repeat(funcPrint.length()));
+
+                String repeatedStars = "*".repeat(funcPrint.length());
+                LOG.info(repeatedStars);
             }
         }
-        LOG.info("\n" + "-".repeat(80));
+        String repeatedHyphens = "\n" + "-".repeat(80);
+        LOG.info(repeatedHyphens);
     }
 
     private void processReceivedMessage(Agent sender, ChatMessage message, boolean silent) {
@@ -172,7 +179,7 @@ public class ConversableAgent extends Agent {
     public void receive(Agent sender, ChatMessage message, boolean requestReply, boolean silent) {
         processReceivedMessage(sender, message, silent);
 
-        if (requestReply || replyAtReceive.get(sender)) {
+        if (requestReply || Boolean.TRUE.equals(replyAtReceive.get(sender))) {
             var reply = generateReply(sender, oaiMessages.get(sender));
             if (reply != null) {
                 send(sender, reply, requestReply, silent);
@@ -275,8 +282,8 @@ public class ConversableAgent extends Agent {
         }
 
         /*
-         * iterate through the last n messages reversely. if code blocks are found, execute the code blocks and
-         * return the output, if no code blocks are found, continue
+         * iterate through the last n messages reversely. if code blocks are found, execute the code blocks and return
+         * the output, if no code blocks are found, continue
          */
         for (int i = 0; i < Math.min(messages.size(), messagesToScan); i++) {
             ChatMessage message = messages.get(messages.size() - 1 - i);
@@ -289,7 +296,8 @@ public class ConversableAgent extends Agent {
             CodeExecutionResult result = executeCodeBlocks(codeBlocks);
 
             String exitCodeToStr = result.exitCode() == 0 ? "execution succeeded" : "execution failed";
-            String reply = String.format("exitcode: %s (%s})\nCode output: %s", result.exitCode(), exitCodeToStr, result.logs());
+            String reply = String.format("exitcode: %s (%s})%nCode output: %s", result.exitCode(), exitCodeToStr,
+                    result.logs());
             return new ReplyResult(true, new ChatMessage(reply));
         }
         return new ReplyResult(false, null);
@@ -331,10 +339,13 @@ public class ConversableAgent extends Agent {
         String noHumanInputMsg = "";
         if (humanInputMode.equals(ALWAYS)) {
             reply = getHumanInput(
-                    String.format("Provide feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: ", sender.getName()));
+                    String.format(
+                            "Provide feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: ",
+                            sender.getName()));
 
-            noHumanInputMsg = reply.isEmpty() ? "NO HUMAN INPUT RECEIVED." : "";
-            // if the human input is empty, and the message is a termination message, then we will terminate the conversation
+            noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
+            // if the human input is empty, and the message is a termination message, then we will terminate the
+            // conversation
             reply = !reply.isEmpty() || !isTerminationMsg.test(message) ? reply : "exit";
         } else {
             if (consecutiveAutoReplyCounter.get(sender) > maxConsecutiveAutoReply) {
@@ -345,11 +356,16 @@ public class ConversableAgent extends Agent {
                     boolean terminate = isTerminationMsg.test(message);
 
                     String prompt = terminate
-                            ? String.format("Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ", sender.getName())
-                            : String.format("Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: ", sender.getName());
+                            ? String.format(
+                                    "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ",
+                                    sender.getName())
+                            : String.format(
+                                    "Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: ",
+                                    sender.getName());
                     reply = getHumanInput(prompt);
-                    noHumanInputMsg = reply.isEmpty() ? "NO HUMAN INPUT RECEIVED." : "";
-                    // if the human input is empty, and the message is a termination message, then we will terminate the conversation
+                    noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
+                    // if the human input is empty, and the message is a termination message, then we will terminate the
+                    // conversation
                     reply = !reply.isEmpty() || !terminate ? reply : "exit";
                 }
             } else if (isTerminationMsg.test(message)) {
@@ -357,10 +373,11 @@ public class ConversableAgent extends Agent {
                     reply = "exit";
                 } else {
                     // if humanInputMode equals "TERMINATE":
-                    reply = getHumanInput(
-                            String.format("Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ", sender.getName()));
+                    reply = getHumanInput(String.format(
+                            "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ",
+                            sender.getName()));
 
-                    noHumanInputMsg = reply.isEmpty() ? "NO HUMAN INPUT RECEIVED." : "";
+                    noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
                     // If the human input is empty, then we will terminate the conversation
                     reply = reply.isEmpty() ? "exit" : reply;
                 }
@@ -432,7 +449,7 @@ public class ConversableAgent extends Agent {
      */
     private CodeExecutionResult executeCodeBlocks(List<CodeBlock> codeBlocks) {
         StringBuilder allLogs = new StringBuilder();
-        CodeExecutionResult result = null;
+        CodeExecutionResult result;
         for (int i = 0; i < codeBlocks.size(); i++) {
             CodeBlock codeBlock = codeBlocks.get(i);
             String language = codeBlock.language();
@@ -451,9 +468,8 @@ public class ConversableAgent extends Agent {
                 return new CodeExecutionResult(result.exitCode(), allLogs.toString());
             }
         }
-        return new CodeExecutionResult(result.exitCode(), allLogs.toString());
+        return new CodeExecutionResult(0, allLogs.toString());
     }
-
 
     /**
      * Execute a function call and return the result.
@@ -464,6 +480,16 @@ public class ConversableAgent extends Agent {
     private ChatMessage executeFunction(FunctionCall functionCall) {
         // TODO
         return null;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
     }
 
     @SuppressWarnings("unchecked")
@@ -519,7 +545,6 @@ public class ConversableAgent extends Agent {
          * default auto reply when no code execution or llm-based reply is generated.
          */
         protected String defaultAutoReply = "";
-
 
         protected Builder() {
             this.client = OpenAiClient.builder()
