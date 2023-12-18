@@ -25,6 +25,11 @@ import com.hw.autogen4j.entity.CodeExecutionConfig;
 import static com.hw.autogen4j.entity.HumanInputMode.NEVER;
 
 /**
+ * AutoGen offers conversable LLM agents, which can be used to solve various tasks with human or automatic feedback,
+ * including tasks that require using tools via code.
+ * <p>
+ * <a href="https://github.com/microsoft/autogen/blob/main/notebook/agentchat_auto_feedback_from_code_execution.ipynb">agentchat_auto_feedback_from_code_execution</a>
+ *
  * @author HamaWhite
  */
 public class AutoFeedbackFromCodeExecutionExample {
@@ -36,7 +41,7 @@ public class AutoFeedbackFromCodeExecutionExample {
                 .build();
 
         var codeExecutionConfig = CodeExecutionConfig.builder()
-                .workDir("coding")
+                .workDir("data/coding")
                 .build();
         // create a UserProxyAgent instance named "user_proxy"
         var userProxy = UserProxyAgent.builder()

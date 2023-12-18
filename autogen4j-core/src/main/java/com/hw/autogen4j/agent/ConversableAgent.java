@@ -18,6 +18,7 @@
 
 package com.hw.autogen4j.agent;
 
+import com.google.common.collect.Lists;
 import com.hw.autogen4j.entity.*;
 import com.hw.openai.OpenAiClient;
 import com.hw.openai.entity.chat.*;
@@ -103,6 +104,8 @@ public class ConversableAgent extends Agent {
     private final Map<Agent, List<ChatMessage>> oaiMessages = new HashMap<>();
     private final List<ChatMessage> oaiSystemMessage;
 
+    private List<BiFunction<Agent, List<ChatMessage>, ReplyResult>> replyFuncList;
+
     protected ConversableAgent(Builder<?> builder) {
         this.name = builder.name;
         this.systemMessage = builder.systemMessage;
@@ -116,6 +119,23 @@ public class ConversableAgent extends Agent {
         this.defaultAutoReply = builder.defaultAutoReply;
 
         this.oaiSystemMessage = List.of(new ChatMessage(SYSTEM, systemMessage));
+        // creating a list of method references
+        this.replyFuncList = Lists.newArrayList(
+                this::checkTerminationAndHumanReply,
+                this::generateFunctionCallReply,
+                this::generateCodeExecutionReply,
+                this::generateOaiReply);
+    }
+
+    /**
+     * The reply function will be called when the trigger matches the sender.
+     * The function registered later will be checked earlier by default.
+     *
+     * @param position  the position of the reply function in the reply function list.
+     * @param replyFunc the reply function.
+     */
+    protected void registerReply(int position, BiFunction<Agent, List<ChatMessage>, ReplyResult> replyFunc) {
+        this.replyFuncList.add(0, replyFunc);
     }
 
     /**
@@ -357,11 +377,11 @@ public class ConversableAgent extends Agent {
 
                     String prompt = terminate
                             ? String.format(
-                                    "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ",
-                                    sender.getName())
+                            "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ",
+                            sender.getName())
                             : String.format(
-                                    "Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: ",
-                                    sender.getName());
+                            "Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: ",
+                            sender.getName());
                     reply = getHumanInput(prompt);
                     noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
                     // if the human input is empty, and the message is a termination message, then we will terminate the
@@ -409,13 +429,6 @@ public class ConversableAgent extends Agent {
 
     @Override
     public ChatMessage generateReply(Agent sender, List<ChatMessage> messages) {
-        // creating a list of method references
-        List<BiFunction<Agent, List<ChatMessage>, ReplyResult>> replyFuncList = List.of(
-                this::checkTerminationAndHumanReply,
-                this::generateFunctionCallReply,
-                this::generateCodeExecutionReply,
-                this::generateOaiReply);
-
         // loop through each method
         for (var replyFunc : replyFuncList) {
             ReplyResult replyResult = replyFunc.apply(sender, messages);

@@ -18,7 +18,21 @@
 
 package com.hw.autogen4j.agent.group;
 
+import com.hw.autogen4j.agent.Agent;
+import com.hw.autogen4j.agent.AssistantAgent;
 import com.hw.autogen4j.agent.ConversableAgent;
+import com.hw.autogen4j.entity.ReplyResult;
+import com.hw.autogen4j.exception.Autogen4jException;
+import com.hw.openai.entity.chat.ChatCompletion;
+import com.hw.openai.entity.chat.ChatCompletionResp;
+import com.hw.openai.entity.chat.ChatMessage;
+import org.apache.commons.collections4.ListUtils;
+
+import java.io.InterruptedIOException;
+import java.util.List;
+
+import static com.hw.autogen4j.entity.HumanInputMode.NEVER;
+import static com.hw.openai.entity.chat.ChatMessageRole.FUNCTION;
 
 /**
  * A chat manager agent that can manage a group chat of multiple agents.
@@ -27,7 +41,88 @@ import com.hw.autogen4j.agent.ConversableAgent;
  */
 public class GroupChatManager extends ConversableAgent {
 
-    protected GroupChatManager(Builder<?> builder) {
+    private GroupChat groupChat;
+
+    protected GroupChatManager(Builder builder) {
         super(builder);
+        this.groupChat = builder.groupChat;
+
+        this.registerReply(0, this::runChat);
+    }
+
+    /**
+     * Run a group chat.
+     *
+     * @param sender   The agent object representing the sender of the message.
+     * @param messages A list of message, representing the conversation history.
+     * @return a reply result.
+     */
+    private ReplyResult runChat(Agent sender, List<ChatMessage> messages) {
+        ChatMessage message = messages.get(messages.size() - 1);
+        Agent speaker = sender;
+        for (int i = 0; i < groupChat.getMaxRound(); i++) {
+            // set the name to speaker's name if the role is not function
+            if (!FUNCTION.equals(message.getRole())) {
+                message.setName(speaker.getName());
+            }
+            groupChat.append(message);
+            // the conversation is over
+            if (isTerminationMsg.test(message)) {
+                break;
+            }
+            // broadcast the message to all agents except the speaker
+            for (Agent agent : groupChat.getAgents()) {
+                if (!agent.equals(speaker)) {
+                    send(agent, message, false, true);
+                }
+            }
+            ChatMessage reply;
+            try {
+                // select the next speaker.
+                speaker = groupChat.selectSpeaker(speaker, this);
+                // Let the speaker speak.
+                reply = speaker.generateReply(this, List.of());
+            } catch (Exception e) {
+                // let the admin agent speak if interrupted.
+                if (groupChat.getAgentNames().contains(groupChat.getAdminName())) {
+                    // admin agent is one of the participants.
+                    speaker = groupChat.getAgentByName(groupChat.getAdminName());
+                    reply = speaker.generateReply(this, List.of());
+                } else {
+                    throw new Autogen4jException("Admin agent is not found in the participants.", e);
+                }
+            }
+            // the speaker sends the message without requesting a reply.
+            speaker.send(this, reply, false, false);
+            message = lastMessage(speaker);
+        }
+        return new ReplyResult(true, null);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder extends ConversableAgent.Builder<Builder> {
+
+        private GroupChat groupChat;
+
+        public Builder groupChat(GroupChat groupChat) {
+            this.groupChat = groupChat;
+            return this;
+        }
+
+        private Builder() {
+            super();
+            this.name = "chat_manager";
+            this.maxConsecutiveAutoReply = Integer.MAX_VALUE;
+            this.systemMessage = "Group chat manager.";
+            this.humanInputMode = NEVER;
+        }
+
+        @Override
+        public GroupChatManager build() {
+            return new GroupChatManager(this);
+        }
     }
 }
