@@ -20,6 +20,7 @@ package com.hw.autogen4j.agent;
 
 import com.google.common.collect.Lists;
 import com.hw.autogen4j.entity.*;
+import com.hw.autogen4j.exception.Autogen4jException;
 import com.hw.openai.OpenAiClient;
 import com.hw.openai.entity.chat.*;
 
@@ -52,11 +53,6 @@ public class ConversableAgent extends Agent {
     private static final Logger LOG = LoggerFactory.getLogger(ConversableAgent.class);
 
     private static final String NO_HUMAN_INPUT_MSG = "NO HUMAN INPUT RECEIVED.";
-
-    /**
-     * system message for the ChatCompletion inference.
-     */
-    protected String systemMessage;
 
     /**
      * a function that takes a message in the form of a dictionary and
@@ -101,10 +97,10 @@ public class ConversableAgent extends Agent {
 
     private final Map<Agent, Integer> consecutiveAutoReplyCounter = new HashMap<>();
     private final Map<Agent, Boolean> replyAtReceive = new HashMap<>();
-    private final Map<Agent, List<ChatMessage>> oaiMessages = new HashMap<>();
     private final List<ChatMessage> oaiSystemMessage;
+    private final Map<Agent, List<ChatMessage>> oaiMessages = new HashMap<>();
 
-    private List<BiFunction<Agent, List<ChatMessage>, ReplyResult>> replyFuncList;
+    private final List<BiFunction<Agent, List<ChatMessage>, ReplyResult>> replyFuncList;
 
     protected ConversableAgent(Builder<?> builder) {
         this.name = builder.name;
@@ -131,11 +127,36 @@ public class ConversableAgent extends Agent {
      * The reply function will be called when the trigger matches the sender.
      * The function registered later will be checked earlier by default.
      *
-     * @param position  the position of the reply function in the reply function list.
      * @param replyFunc the reply function.
      */
-    protected void registerReply(int position, BiFunction<Agent, List<ChatMessage>, ReplyResult> replyFunc) {
+    protected void registerReply(BiFunction<Agent, List<ChatMessage>, ReplyResult> replyFunc) {
         this.replyFuncList.add(0, replyFunc);
+    }
+
+    /**
+     * Update the system message.
+     *
+     * @param systemMessage system message for the ChatCompletion inference.
+     */
+    public void updateSystemMessage(String systemMessage) {
+        oaiSystemMessage.get(0).setContent(systemMessage);
+    }
+
+    /**
+     * The last message exchanged with the agent.
+     *
+     * @param agent The agent in the conversation.
+     *              If None and more than one agent's conversations are found, an error will be raised.
+     *              If None and only one conversation is found, the last message of the only conversation will be returned.
+     * @return The last message exchanged with the agent.
+     */
+    protected ChatMessage lastMessage(Agent agent) {
+        if (oaiMessages.containsKey(agent)) {
+            throw new Autogen4jException(
+                    "The agent %s is not present in any conversation. No history available for this agent.",
+                    agent.getName());
+        }
+        return oaiMessages.get(agent).get(oaiMessages.get(agent).size() - 1);
     }
 
     /**
@@ -270,7 +291,7 @@ public class ConversableAgent extends Agent {
      * @param messages A list of message, representing the conversation history.
      * @return a reply using llm.
      */
-    private ReplyResult generateOaiReply(Agent sender, List<ChatMessage> messages) {
+    public ReplyResult generateOaiReply(Agent sender, List<ChatMessage> messages) {
         chatCompletion.setMessages(ListUtils.union(oaiSystemMessage, messages));
         ChatCompletionResp response = client.createChatCompletion(chatCompletion);
         return new ReplyResult(true, response.getChoices().get(0).getMessage());
@@ -429,6 +450,9 @@ public class ConversableAgent extends Agent {
 
     @Override
     public ChatMessage generateReply(Agent sender, List<ChatMessage> messages) {
+        if (CollectionUtils.isEmpty(messages)) {
+            messages = oaiMessages.get(sender);
+        }
         // loop through each method
         for (var replyFunc : replyFuncList) {
             ReplyResult replyResult = replyFunc.apply(sender, messages);

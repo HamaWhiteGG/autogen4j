@@ -39,6 +39,11 @@ public abstract class Agent {
     protected String name;
 
     /**
+     * system message for the ChatCompletion inference.
+     */
+    protected String systemMessage;
+
+    /**
      * Send a string message to another agent.
      *
      * @param recipient the recipient of the message.

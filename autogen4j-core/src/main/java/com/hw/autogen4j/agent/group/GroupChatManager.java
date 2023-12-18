@@ -19,16 +19,11 @@
 package com.hw.autogen4j.agent.group;
 
 import com.hw.autogen4j.agent.Agent;
-import com.hw.autogen4j.agent.AssistantAgent;
 import com.hw.autogen4j.agent.ConversableAgent;
 import com.hw.autogen4j.entity.ReplyResult;
 import com.hw.autogen4j.exception.Autogen4jException;
-import com.hw.openai.entity.chat.ChatCompletion;
-import com.hw.openai.entity.chat.ChatCompletionResp;
 import com.hw.openai.entity.chat.ChatMessage;
-import org.apache.commons.collections4.ListUtils;
 
-import java.io.InterruptedIOException;
 import java.util.List;
 
 import static com.hw.autogen4j.entity.HumanInputMode.NEVER;
@@ -41,13 +36,13 @@ import static com.hw.openai.entity.chat.ChatMessageRole.FUNCTION;
  */
 public class GroupChatManager extends ConversableAgent {
 
-    private GroupChat groupChat;
+    private final GroupChat groupChat;
 
     protected GroupChatManager(Builder builder) {
         super(builder);
         this.groupChat = builder.groupChat;
 
-        this.registerReply(0, this::runChat);
+        this.registerReply(this::runChat);
     }
 
     /**
@@ -84,9 +79,9 @@ public class GroupChatManager extends ConversableAgent {
                 reply = speaker.generateReply(this, List.of());
             } catch (Exception e) {
                 // let the admin agent speak if interrupted.
-                if (groupChat.getAgentNames().contains(groupChat.getAdminName())) {
+                if (groupChat.agentNames().contains(groupChat.getAdminName())) {
                     // admin agent is one of the participants.
-                    speaker = groupChat.getAgentByName(groupChat.getAdminName());
+                    speaker = groupChat.agentByName(groupChat.getAdminName());
                     reply = speaker.generateReply(this, List.of());
                 } else {
                     throw new Autogen4jException("Admin agent is not found in the participants.", e);
