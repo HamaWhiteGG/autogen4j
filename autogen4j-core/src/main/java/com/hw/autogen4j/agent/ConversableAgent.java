@@ -380,9 +380,8 @@ public class ConversableAgent extends Agent {
         String noHumanInputMsg = "";
         if (humanInputMode.equals(ALWAYS)) {
             reply = getHumanInput(
-                    String.format(
-                            "Provide feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: ",
-                            sender.getName()));
+                    "Provide feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: "
+                            .formatted(sender.getName()));
 
             noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
             // if the human input is empty, and the message is a termination message, then we will terminate the
@@ -395,14 +394,11 @@ public class ConversableAgent extends Agent {
                 } else {
                     // if humanInputMode equals "TERMINATE"
                     boolean terminate = isTerminationMsg.test(message);
-
                     String prompt = terminate
-                            ? String.format(
-                            "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ",
-                            sender.getName())
-                            : String.format(
-                            "Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: ",
-                            sender.getName());
+                            ? "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: "
+                                    .formatted(sender.getName())
+                            : "Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
+                                    .formatted(sender.getName());
                     reply = getHumanInput(prompt);
                     noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
                     // if the human input is empty, and the message is a termination message, then we will terminate the
@@ -414,9 +410,9 @@ public class ConversableAgent extends Agent {
                     reply = "exit";
                 } else {
                     // if humanInputMode equals "TERMINATE":
-                    reply = getHumanInput(String.format(
-                            "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: ",
-                            sender.getName()));
+                    reply = getHumanInput(
+                            "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: "
+                                    .formatted(sender.getName()));
 
                     noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
                     // If the human input is empty, then we will terminate the conversation
