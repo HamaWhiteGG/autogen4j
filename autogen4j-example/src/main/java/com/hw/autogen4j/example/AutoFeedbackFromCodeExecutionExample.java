@@ -43,7 +43,7 @@ public class AutoFeedbackFromCodeExecutionExample {
                 .name("user_proxy")
                 .humanInputMode(NEVER)
                 .maxConsecutiveAutoReply(10)
-                .isTerminationMsg(e->e.getContent().strip().endsWith("TERMINATE"))
+                .isTerminationMsg(e -> e.getContent().strip().endsWith("TERMINATE"))
                 .codeExecutionConfig(codeExecutionConfig)
                 .build();
 
@@ -52,6 +52,7 @@ public class AutoFeedbackFromCodeExecutionExample {
                 "What date is today? Compare the year-to-date gain for META and TESLA.");
 
         // followup of the previous question
-        // userProxy.send(assistant,"Plot a chart of their stock price change YTD and save to stock_price_ytd.png.");
+        userProxy.send(assistant,
+                "Plot a chart of their stock price change YTD and save to stock_price_ytd.png.");
     }
 }

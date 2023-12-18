@@ -39,6 +39,16 @@ public abstract class Agent {
     protected String name;
 
     /**
+     * Send a string message to another agent.
+     *
+     * @param recipient the recipient of the message.
+     * @param message   string message to be sent.
+     */
+    public void send(Agent recipient, String message) {
+        send(recipient, new ChatMessage(message), false, false);
+    }
+
+    /**
      * Send a message to another agent.
      *
      * @param recipient    the recipient of the message.
@@ -62,8 +72,8 @@ public abstract class Agent {
     /**
      * Generate a reply based on the received messages.
      *
-     * @param sender sender of an Agent instance.
-     * @param messages  a list of messages received.
+     * @param sender   sender of an Agent instance.
+     * @param messages a list of messages received.
      * @return a reply message.
      */
     public abstract ChatMessage generateReply(Agent sender, List<ChatMessage> messages);
