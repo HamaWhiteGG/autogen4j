@@ -96,7 +96,6 @@ public class ConversableAgent extends Agent {
     protected String defaultAutoReply;
 
     private final Map<Agent, Integer> consecutiveAutoReplyCounter = new HashMap<>();
-    private final Map<Agent, Boolean> replyAtReceive = new HashMap<>();
     private final List<ChatMessage> oaiSystemMessage;
     private final Map<Agent, List<ChatMessage>> oaiMessages = new HashMap<>();
 
@@ -220,7 +219,7 @@ public class ConversableAgent extends Agent {
     public void receive(Agent sender, ChatMessage message, boolean requestReply, boolean silent) {
         processReceivedMessage(sender, message, silent);
 
-        if (requestReply || Boolean.TRUE.equals(replyAtReceive.get(sender))) {
+        if (requestReply) {
             var reply = generateReply(sender, oaiMessages.get(sender));
             if (reply != null) {
                 send(sender, reply, requestReply, silent);
@@ -231,9 +230,6 @@ public class ConversableAgent extends Agent {
     private void prepareChat(ConversableAgent recipient, boolean clearHistory) {
         this.resetConsecutiveAutoReplyCounter(recipient);
         recipient.resetConsecutiveAutoReplyCounter(this);
-
-        this.replyAtReceive.putIfAbsent(recipient, true);
-        recipient.replyAtReceive.putIfAbsent(this, true);
 
         if (clearHistory) {
             this.clearHistory(recipient);
@@ -337,7 +333,7 @@ public class ConversableAgent extends Agent {
             CodeExecutionResult result = executeCodeBlocks(codeBlocks);
 
             String exitCodeToStr = result.exitCode() == 0 ? "execution succeeded" : "execution failed";
-            String reply = String.format("exitcode: %s (%s})%nCode output: %s", result.exitCode(), exitCodeToStr,
+            String reply = String.format("exitcode: %s (%s)%nCode output: %s", result.exitCode(), exitCodeToStr,
                     result.logs());
             return new ReplyResult(true, new ChatMessage(reply));
         }
