@@ -151,7 +151,7 @@ public class ConversableAgent extends Agent {
      * @return The last message exchanged with the agent.
      */
     protected ChatMessage lastMessage(Agent agent) {
-        if (oaiMessages.containsKey(agent)) {
+        if (!oaiMessages.containsKey(agent)) {
             throw new Autogen4jException(
                     "The agent %s is not present in any conversation. No history available for this agent.",
                     agent.getName());
@@ -262,7 +262,7 @@ public class ConversableAgent extends Agent {
      */
     public void initiateChat(ConversableAgent recipient, String message, boolean clearHistory, boolean silent) {
         prepareChat(recipient, clearHistory);
-        send(recipient, new ChatMessage(message), false, silent);
+        send(recipient, new ChatMessage(message), true, silent);
     }
 
     private void resetConsecutiveAutoReplyCounter(Agent sender) {
@@ -388,7 +388,7 @@ public class ConversableAgent extends Agent {
             // conversation
             reply = !reply.isEmpty() || !isTerminationMsg.test(message) ? reply : "exit";
         } else {
-            if (consecutiveAutoReplyCounter.get(sender) > maxConsecutiveAutoReply) {
+            if (consecutiveAutoReplyCounter.getOrDefault(sender, 0) > maxConsecutiveAutoReply) {
                 if (humanInputMode.equals(NEVER)) {
                     reply = "exit";
                 } else {
@@ -396,9 +396,9 @@ public class ConversableAgent extends Agent {
                     boolean terminate = isTerminationMsg.test(message);
                     String prompt = terminate
                             ? "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: "
-                                    .formatted(sender.getName())
+                            .formatted(sender.getName())
                             : "Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
-                                    .formatted(sender.getName());
+                            .formatted(sender.getName());
                     reply = getHumanInput(prompt);
                     noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
                     // if the human input is empty, and the message is a termination message, then we will terminate the
@@ -437,7 +437,7 @@ public class ConversableAgent extends Agent {
             return new ReplyResult(true, new ChatMessage(reply));
         }
         // increment the consecutiveAutoReplyCounter
-        consecutiveAutoReplyCounter.put(sender, consecutiveAutoReplyCounter.get(sender) + 1);
+        consecutiveAutoReplyCounter.put(sender, consecutiveAutoReplyCounter.getOrDefault(sender, 0) + 1);
         if (!humanInputMode.equals(NEVER)) {
             LOG.info("\n>>>>>>>> USING AUTO REPLY...");
         }

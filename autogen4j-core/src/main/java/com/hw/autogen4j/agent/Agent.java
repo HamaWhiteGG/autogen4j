@@ -50,7 +50,7 @@ public abstract class Agent {
      * @param message   string message to be sent.
      */
     public void send(Agent recipient, String message) {
-        send(recipient, new ChatMessage(message), false, false);
+        send(recipient, new ChatMessage(message), true, false);
     }
 
     /**
