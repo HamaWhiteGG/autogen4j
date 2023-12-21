@@ -1,3 +1,4 @@
+## Autogen4j
 **Java version of Microsoft AutoGen, Enable Next-Gen Large Language Model Applications**
 
 ## 1. What is AutoGen
@@ -6,10 +7,10 @@ AutoGen is a framework that enables the development of LLM applications using mu
 
 ![AutoGen Overview](https://github.com/HamaWhiteGG/autogen4j/blob/dev/data/images/autogen_agentchat.png)
 
-- AutoGen enables building next-gen LLM applications based on [multi-agent conversations](https://microsoft.github.io/autogen/docs/Use-Cases/agent_chat) with minimal effort. It simplifies the orchestration, automation, and optimization of a complex LLM workflow. It maximizes the performance of LLM models and overcomes their weaknesses.
-- It supports [diverse conversation patterns](https://microsoft.github.io/autogen/docs/Use-Cases/agent_chat#supporting-diverse-conversation-patterns) for complex workflows. With customizable and conversable agents, developers can use AutoGen to build a wide range of conversation patterns concerning conversation autonomy,
-  the number of agents, and agent conversation topology.
-- It provides a collection of working systems with different complexities. These systems span a [wide range of applications](https://microsoft.github.io/autogen/docs/Use-Cases/agent_chat#diverse-applications-implemented-with-autogen) from various domains and complexities. This demonstrates how AutoGen can easily support diverse conversation patterns.
+The following example in the [autogen4j-example](autogen4j-example/src/main/java/com/hw/autogen4j/example).
+
+- [Auto Feedback From Code Execution Example](autogen4j-example/src/main/java/com/hw/autogen4j/example/AutoFeedbackFromCodeExecutionExample.java)
+- [Group Chat Example](autogen4j-example/src/main/java/com/hw/autogen4j/example/GroupChatExample.java)
 
 ## 2. Quickstart
 
@@ -48,7 +49,9 @@ Features of this use case include:
 - **Customization**: AutoGen agents can be customized to meet the specific needs of an application. This includes the ability to choose the LLMs to use, the types of human input to allow, and the tools to employ.
 - **Human participation**: AutoGen seamlessly allows human participation. This means that humans can provide input and feedback to the agents as needed.
 
-For [AutoFeedbackFromCodeExecutionExample](autogen4j-example/src/main/java/com/hw/autogen4j/example/AutoFeedbackFromCodeExecutionExample.java),
+### 3.1 Auto Feedback From Code Execution Example
+[Auto Feedback From Code Execution Example](autogen4j-example/src/main/java/com/hw/autogen4j/example/AutoFeedbackFromCodeExecutionExample.java),
+
 ```java
 // create an AssistantAgent named "assistant"
 var assistant = AssistantAgent.builder()
@@ -76,8 +79,56 @@ userProxy.send(assistant,
         "Plot a chart of their stock price change YTD and save to stock_price_ytd.png.");
 ```
 
-The figure below shows an example conversation flow with AutoGen.
+The figure below shows an example conversation flow with Autogen4j.
 ![Agent Chat Example](https://github.com/HamaWhiteGG/autogen4j/blob/dev/data/images/chat_example.png)
+
+After running, you can check the file [coding_output.log](data/coding/coding_output.log) for the output logs.
+
+
+### 3.2 Group Chat Example
+[Group Chat Example](autogen4j-example/src/main/java/com/hw/autogen4j/example/GroupChatExample.java)
+
+```java
+var codeExecutionConfig = CodeExecutionConfig.builder()
+        .workDir("data/group_chat")
+        .lastMessagesNumber(2)
+        .build();
+
+// create a UserProxyAgent instance named "user_proxy"
+var userProxy = UserProxyAgent.builder()
+        .name("user_proxy")
+        .systemMessage("A human admin.")
+        .humanInputMode(TERMINATE)
+        .codeExecutionConfig(codeExecutionConfig)
+        .build();
+
+// create an AssistantAgent named "coder"
+var coder = AssistantAgent.builder()
+        .name("coder")
+        .build();
+
+// create an AssistantAgent named "pm"
+var pm = AssistantAgent.builder()
+        .name("product_manager")
+        .systemMessage("Creative in software product ideas.")
+        .build();
+
+var groupChat = GroupChat.builder()
+        .agents(List.of(userProxy, coder, pm))
+        .maxRound(12)
+        .build();
+
+// create an GroupChatManager named "manager"
+var manager = GroupChatManager.builder()
+        .groupChat(groupChat)
+        .build();
+
+userProxy.initiateChat(manager,
+        "Find a latest paper about gpt-4 on arxiv and find its potential applications in software.");
+```
+
+After running, you can check the file [group_chat_output.log](data/group_chat/group_chat_output.log) for the output logs.
+
 
 ## 4. Run Test Cases from Source
 
@@ -89,7 +140,8 @@ cd autogen4j
 mvn clean test
 ```
 
-This project uses Spotless to format the code. If you make any modifications, please remember to format the code using the following command.
+This project uses Spotless to format the code.   
+If you make any modifications, please remember to format the code using the following command.
 
 ```shell
 # export JAVA_HOME=JDK17_INSTALL_HOME && mvn spotless:apply
