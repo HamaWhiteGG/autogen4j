@@ -94,6 +94,16 @@ public class GroupChatManager extends ConversableAgent {
         return new ReplyResult(true, null);
     }
 
+    @Override
+    public boolean equals(Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
     public static Builder builder() {
         return new Builder();
     }

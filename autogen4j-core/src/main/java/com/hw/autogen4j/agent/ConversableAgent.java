@@ -222,7 +222,7 @@ public class ConversableAgent extends Agent {
         if (requestReply) {
             var reply = generateReply(sender, oaiMessages.get(sender));
             if (reply != null) {
-                send(sender, reply, requestReply, silent);
+                send(sender, reply, true, silent);
             }
         }
     }
@@ -392,9 +392,9 @@ public class ConversableAgent extends Agent {
                     boolean terminate = isTerminationMsg.test(message);
                     String prompt = terminate
                             ? "Please give feedback to %s. Press enter or type 'exit' to stop the conversation: "
-                            .formatted(sender.getName())
+                                    .formatted(sender.getName())
                             : "Please give feedback to %s. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
-                            .formatted(sender.getName());
+                                    .formatted(sender.getName());
                     reply = getHumanInput(prompt);
                     noHumanInputMsg = reply.isEmpty() ? NO_HUMAN_INPUT_MSG : "";
                     // if the human input is empty, and the message is a termination message, then we will terminate the

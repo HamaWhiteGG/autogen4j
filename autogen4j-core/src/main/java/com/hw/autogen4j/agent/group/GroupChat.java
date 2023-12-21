@@ -160,7 +160,7 @@ public class GroupChat {
         Map<String, Integer> mentions = mentionedAgents(content, updatedAgents);
 
         if (mentions.size() == 1) {
-            String name = mentions.keySet().stream().findFirst().get();
+            String name = mentions.keySet().iterator().next();
             return agentByName(name);
         } else {
             throw new Autogen4jException("GroupChat selectSpeaker failed to resolve the next speaker's name. " +
