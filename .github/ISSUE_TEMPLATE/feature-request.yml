@@ -19,6 +19,11 @@ description: Suggest an idea for this project
 title: "[Feature][Module Name] Feature title"
 labels: [ "new feature", "Waiting for reply" ]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        For better global communication, Please write in English.
+
   - type: checkboxes
     attributes:
       label: Search before asking
