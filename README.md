@@ -84,6 +84,9 @@ The figure below shows an example conversation flow with Autogen4j.
 
 After running, you can check the file [coding_output.log](data/coding/coding_output.log) for the output logs.
 
+The final output is `stock_price_ytd.png`.
+![stock_price_ytd](https://github.com/HamaWhiteGG/autogen4j/blob/dev/data/images/stock_price_ytd.png)
+
 
 ### 3.2 Group Chat Example
 [Group Chat Example](autogen4j-example/src/main/java/com/hw/autogen4j/example/GroupChatExample.java)
