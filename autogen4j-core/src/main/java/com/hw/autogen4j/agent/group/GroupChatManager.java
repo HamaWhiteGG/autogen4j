@@ -47,6 +47,10 @@ public class GroupChatManager extends ConversableAgent {
 
     /**
      * Run a group chat.
+     * <p>
+     * In group chat, all participants send msgs to the group chat manager and the group chat manager broadcast them.
+     * The participants don't directly send msgs to each other. But because of the broadcast, it creates the experience
+     * that every participant sees msgs from other participants.
      *
      * @param sender   The agent object representing the sender of the message.
      * @param messages A list of message, representing the conversation history.
