@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 
 <profiles version="13">
-    <profile kind="CodeFormatterProfile" name="'LangChain Java Current'" version="13">
+    <profile kind="CodeFormatterProfile" name="'Autogen4j Current'" version="13">
         <setting id="org.eclipse.jdt.core.compiler.source" value="1.8"/>
         <setting id="org.eclipse.jdt.core.compiler.compliance" value="1.8"/>
         <setting id="org.eclipse.jdt.core.compiler.codegen.targetPlatform" value="1.8"/>
