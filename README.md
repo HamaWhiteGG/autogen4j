@@ -151,3 +151,8 @@ If you make any modifications, please remember to format the code using the foll
 # export JAVA_HOME=JDK17_INSTALL_HOME && mvn spotless:apply
 mvn spotless:apply
 ```
+
+## 5. Support
+Don’t hesitate to ask!
+
+[Open an issue](https://github.com/HamaWhiteGG/autogen4j/issues) if you find a bug or need any help.
