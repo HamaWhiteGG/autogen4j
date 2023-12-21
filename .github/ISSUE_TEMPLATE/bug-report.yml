@@ -54,8 +54,6 @@ body:
         Please explain why you think the behaviour is erroneous. It is extremely helpful if you copy and paste
         the fragment of logs showing the exact error messages or wrong behaviour and screenshots for
         UI problems. You can include files by dragging and dropping them here.
-    validations:
-      required: false
 
   - type: textarea
     attributes:
@@ -68,8 +66,6 @@ body:
         as minimally and precisely as possible. Keep in mind we do not have access to your deployment.
         Remember that non-reproducible issues will be closed! Opening a discussion is recommended as a
         first step.
-    validations:
-      required: false
 
   - type: markdown
     attributes:
