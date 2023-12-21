@@ -1,5 +1,5 @@
 # Autogen4j
-Java version of Microsoft AutoGen, Enable Next-Gen Large Language Model Applications  
+Java version of Microsoft AutoGen, Enable Next-Gen Large Language Model Applications.
 
 
 ## 1. What is AutoGen
