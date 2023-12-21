@@ -144,7 +144,7 @@
                                 <order>com,org,,javax,java,scala,\#</order>
                             </importOrder>
 
-                            <removeUnusedImports/>
+                            <removeUnusedImports />
                         </java>
                         <pom>
                             <sortPom>
