@@ -50,7 +50,7 @@ Features of this use case include:
 - **Human participation**: AutoGen seamlessly allows human participation. This means that humans can provide input and feedback to the agents as needed.
 
 ### 3.1 Auto Feedback From Code Execution Example
-[Auto Feedback From Code Execution Example](autogen4j-example/src/main/java/com/hw/autogen4j/example/AutoFeedbackFromCodeExecutionExample.java),
+[Auto Feedback From Code Execution Example](autogen4j-example/src/main/java/com/hw/autogen4j/example/AutoFeedbackFromCodeExecutionExample.java)
 
 ```java
 // create an AssistantAgent named "assistant"
@@ -84,7 +84,7 @@ The figure below shows an example conversation flow with Autogen4j.
 
 After running, you can check the file [coding_output.log](data/coding/coding_output.log) for the output logs.
 
-The final output is `stock_price_ytd.png`.
+The final output is as shown in the following picture.
 ![stock_price_ytd](https://github.com/HamaWhiteGG/autogen4j/blob/dev/data/coding/stock_price_ytd.png)
 
 
