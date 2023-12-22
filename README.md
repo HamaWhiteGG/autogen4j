@@ -34,9 +34,6 @@ Prerequisites for building:
 Using Autogen4j requires OpenAI's APIs, you need to set the environment variable.
 ```shell
 export OPENAI_API_KEY=xxx
-
-# If a proxy is needed, set the OPENAI_PROXY environment variable.
-export OPENAI_PROXY=http://host:port
 ```
 
 ## 3. Multi-Agent Conversation Framework
