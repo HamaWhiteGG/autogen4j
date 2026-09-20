@@ -1,3 +1,5 @@
+
+
 # Autogen4j
 Java version of Microsoft AutoGen, Enable Next-Gen Large Language Model Applications.
 
@@ -142,7 +144,7 @@ mvn clean test
 ```
 
 This project uses Spotless to format the code.   
-If you make any modifications, please remember to format the code using the following command.
+If you make any modifications, please remember to format the code using the following command before running `mvn clean test`.
 
 ```shell
 # export JAVA_HOME=JDK17_INSTALL_HOME && mvn spotless:apply
